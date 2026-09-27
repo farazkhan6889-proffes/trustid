@@ -1,0 +1,42 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_34-8bada7e1645476231211f790f5aee71a6d094d7d",
+  "solcVersion": "0.8.34",
+  "solcLongVersion": "0.8.34+commit.80d5c536",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/TrustID.sol": "project/contracts/TrustID.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "osaka",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/TrustID.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.24;\r\n\r\ncontract TrustID {\r\n    address public owner;\r\n\r\n    struct Credential {\r\n        bytes32 credentialHash;\r\n        address holder;\r\n        address issuer;\r\n        uint256 issuedAt;\r\n        uint256 expiresAt;\r\n        bool revoked;\r\n    }\r\n\r\n    mapping(bytes32 => Credential) private credentials;\r\n    mapping(address => bool) public trustedIssuers;\r\n\r\n    event IssuerRegistered(address indexed issuer);\r\n    event CredentialIssued(\r\n        bytes32 indexed credentialId,\r\n        address indexed holder,\r\n        address indexed issuer\r\n    );\r\n    event CredentialRevoked(bytes32 indexed credentialId);\r\n\r\n    modifier onlyOwner() {\r\n        require(msg.sender == owner, \"Only owner can perform this action\");\r\n        _;\r\n    }\r\n\r\n    modifier onlyIssuer() {\r\n        require(trustedIssuers[msg.sender], \"Not a trusted issuer\");\r\n        _;\r\n    }\r\n\r\n    constructor() {\r\n        owner = msg.sender;\r\n        trustedIssuers[msg.sender] = true;\r\n    }\r\n\r\n    function registerIssuer(address issuer) external onlyOwner {\r\n        trustedIssuers[issuer] = true;\r\n        emit IssuerRegistered(issuer);\r\n    }\r\n\r\n    function issueCredential(\r\n        bytes32 credentialId,\r\n        bytes32 credentialHash,\r\n        address holder,\r\n        uint256 expiresAt\r\n    ) external onlyIssuer {\r\n        require(holder != address(0), \"Invalid holder\");\r\n        require(credentials[credentialId].issuedAt == 0, \"Credential already exists\");\r\n\r\n        credentials[credentialId] = Credential({\r\n            credentialHash: credentialHash,\r\n            holder: holder,\r\n            issuer: msg.sender,\r\n            issuedAt: block.timestamp,\r\n            expiresAt: expiresAt,\r\n            revoked: false\r\n        });\r\n\r\n        emit CredentialIssued(\r\n            credentialId,\r\n            holder,\r\n            msg.sender\r\n        );\r\n    }\r\n\r\n    function revokeCredential(bytes32 credentialId) external {\r\n        Credential storage credential = credentials[credentialId];\r\n\r\n        require(credential.issuedAt != 0, \"Credential does not exist\");\r\n        require(\r\n            msg.sender == credential.issuer || msg.sender == owner,\r\n            \"Not authorized\"\r\n        );\r\n\r\n        credential.revoked = true;\r\n\r\n        emit CredentialRevoked(credentialId);\r\n    }\r\n\r\n    function verifyCredential(bytes32 credentialId)\r\n        external\r\n        view\r\n        returns (\r\n            bool valid,\r\n            address holder,\r\n            address issuer,\r\n            uint256 issuedAt,\r\n            uint256 expiresAt,\r\n            bool revoked\r\n        )\r\n    {\r\n        Credential memory credential = credentials[credentialId];\r\n\r\n        if (credential.issuedAt == 0) {\r\n            return (false, address(0), address(0), 0, 0, false);\r\n        }\r\n\r\n        bool notExpired =\r\n            credential.expiresAt == 0 ||\r\n            block.timestamp <= credential.expiresAt;\r\n\r\n        valid = !credential.revoked && notExpired;\r\n\r\n        return (\r\n            valid,\r\n            credential.holder,\r\n            credential.issuer,\r\n            credential.issuedAt,\r\n            credential.expiresAt,\r\n            credential.revoked\r\n        );\r\n    }\r\n}"
+      }
+    }
+  }
+}
